@@ -25,3 +25,8 @@ vendor/
 
 # Output files
 out/*.csv
+
+# Generated output CSV files (encoded/decoded results)
+e[0-9][0-9]_*.csv
+d[0-9][0-9]_*.csv
+*.part[0-9]*
