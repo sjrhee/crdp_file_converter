@@ -153,6 +153,8 @@ Flags:
 
 기본값을 명령줄 인자마다 지정하는 대신, `config.yaml` 파일로 관리할 수 있습니다.
 
+**주의**: crdp_cli_go와 호환되는 설정 파일 형식을 사용합니다.
+
 ### 설정 파일 위치 (자동 검색 순서)
 
 1. `./config.yaml` (현재 디렉토리)
@@ -167,27 +169,70 @@ Flags:
 
 ### 설정 파일 형식
 
-`config.yaml` 예시:
+`config.yaml` 예시 (crdp_cli_go와 호환):
 ```yaml
-# CRDP Server settings
-server:
-  host: 192.168.0.231
+# API 연결 설정
+api:
+  host: "192.168.0.231"
   port: 32082
-  policy: P03
   timeout: 30
+  tls: false
 
-# File processing settings
-processing:
+# 보호 정책
+protection:
+  policy: "P03"
+
+# 파일 처리 설정
+file:
   delimiter: ","
-  column: 1                # 기본 컬럼 인덱스
-  batch_size: 100         # API 배치 크기
-  skip_header: true       # 헤더 건너뛰기
-  parallel_workers: 4     # 병렬 처리 워커 수
+  column: 1
+  skip_header: true
 
-# Output settings
+# 배치 처리 설정
+batch:
+  enabled: true
+  size: 100
+
+# 병렬 처리 설정
+parallel:
+  workers: 4
+
+# 출력 설정
 output:
-  file: ""                # 출력 파일 (빈 문자열 = 자동 생성)
+  file: ""
+  show_progress: true
+  show_body: false
+  verbose: false
 ```
+
+### 주요 설정 항목
+
+#### API 연결
+- `api.host`: CRDP API 서버 호스트 (기본값: 192.168.0.231)
+- `api.port`: CRDP API 서버 포트 (기본값: 32082)
+- `api.timeout`: API 요청 타임아웃 (초, 기본값: 30)
+- `api.tls`: HTTPS 사용 여부 (기본값: false)
+
+#### 보호 정책
+- `protection.policy`: 데이터 보호 정책명 (기본값: P03)
+
+#### 파일 처리
+- `file.delimiter`: 컬럼 구분자 (기본값: ",")
+- `file.column`: 변환 대상 컬럼 인덱스 (0-based, 기본값: 0)
+- `file.skip_header`: 헤더 건너뛰기 (기본값: false)
+
+#### 배치 처리
+- `batch.enabled`: 배치 처리 활성화 (기본값: true)
+- `batch.size`: 한 번의 API 호출 데이터 개수 (기본값: 100)
+
+#### 병렬 처리
+- `parallel.workers`: 병렬 처리 워커 수 (기본값: 1 = 순차 처리)
+
+#### 출력
+- `output.file`: 출력 파일 경로 (기본값: 자동 생성)
+- `output.show_progress`: 진행 상황 표시 (기본값: true)
+- `output.show_body`: 응답 본문 표시 (기본값: false)
+- `output.verbose`: 상세 로그 출력 (기본값: false)
 
 ### 설정 파일 우선순위
 
@@ -196,11 +241,11 @@ output:
 명령줄에서 명시적으로 지정한 플래그는 설정 파일의 값을 무시합니다:
 
 ```bash
-# config.yaml에서 column: 1이지만, 명령줄에서 --column 2를 지정
+# config.yaml에서 file.column: 1이지만, 명령줄에서 --column 2를 지정
 ./crdp-file-converter data.csv --column 2 --encode
 # → 2번 컬럼 사용
 
-# config.yaml에서 column: 1, 명령줄에서 지정하지 않음
+# config.yaml에서 file.column: 1, 명령줄에서 지정하지 않음
 ./crdp-file-converter data.csv --encode
 # → 1번 컬럼 사용 (config.yaml의 기본값)
 ```
@@ -219,6 +264,10 @@ vi ./my_config.yaml
 # 사용
 ./crdp-file-converter data.csv --encode --config ./my_config.yaml
 ```
+
+### crdp_cli_go와의 호환성
+
+이 프로젝트의 config.yaml은 [crdp_cli_go](https://github.com/sjrhee/crdp_cli_go)와 동일한 형식을 사용합니다. 따라서 두 프로젝트 간에 설정 파일을 공유할 수 있습니다.
 
 ## 오류 처리
 

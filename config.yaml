@@ -1,57 +1,64 @@
 # CRDP File Converter Configuration
 # 
-# This configuration file allows you to customize default values for CLI options.
-# Command-line flags override these default values.
-# 
-# Example usage:
-#   crdp-file-converter data.csv --column 1 --encode
-#   (uses values from this config file for non-specified options)
+# crdp_cli_go와 호환되는 설정 파일 형식
+# 커맨드라인 플래그로 이 값들을 오버라이드할 수 있습니다.
 
-# CRDP Server settings
-server:
-  # CRDP API server hostname or IP address
-  host: localhost
-  
-  # CRDP API server port
-  port: 8080
-  
-  # Data protection policy name
-  policy: P03
-  
-  # API request timeout in seconds
+# API 연결 설정
+api:
+  # CRDP API 서버 호스트명 또는 IP 주소
+  host: "192.168.0.231"
+  # CRDP API 서버 포트
+  port: 32082
+  # API 요청 타임아웃 (초 단위)
   timeout: 30
+  # HTTPS 사용 여부
+  tls: false
 
-# File processing settings
-processing:
-  # Column delimiter (comma for CSV, tab for TSV)
-  # Common values: "," (CSV) or "\t" (TSV)
+# 보호 정책
+protection:
+  # 데이터 보호 정책명
+  policy: "P03"
+
+# 파일 처리 설정
+file:
+  # 컬럼 구분자 (쉼표는 CSV, 탭은 TSV)
+  # 일반적인 값: "," (CSV) 또는 "\t" (TSV)
   delimiter: ","
-  
-  # Target column index (0-based indexing)
-  # Example: 0 = first column, 1 = second column
+  # 변환 대상 컬럼 인덱스 (0부터 시작)
+  # 예: 0 = 첫 컬럼, 1 = 두 번째 컬럼
   column: 0
-  
-  # Number of rows to send in each API batch request
-  # Larger values: fewer API calls but more memory usage
-  # Smaller values: more API calls but less memory usage
-  # Recommended: 50-200
-  batch_size: 100
-  
-  # Whether to skip the first row (header row)
-  # true = first row is header and will not be processed
-  # false = all rows including first will be processed
+  # 첫 번째 행이 헤더인지 여부
+  # true = 첫 행은 헤더로 처리하고 변환하지 않음
+  # false = 모든 행 변환
   skip_header: false
-  
-  # Parallel processing settings
-  # Number of worker threads for parallel file processing
-  # 0 or 1 = sequential processing (single-threaded)
-  # > 1 = parallel processing with N workers
-  # Recommended: 2-4 for 10-100MB files, 4-8 for >100MB files
-  parallel_workers: 1
 
-# Output settings
+# 배치 처리 설정
+batch:
+  # 배치 처리 활성화 여부
+  enabled: true
+  # 한 번의 API 호출에 포함될 데이터 개수
+  # 큰 값: API 호출 횟수 감소, 메모리 사용 증가
+  # 작은 값: API 호출 횟수 증가, 메모리 사용 감소
+  # 권장값: 50-200
+  size: 100
+
+# 병렬 처리 설정
+parallel:
+  # 병렬 처리 워커 수
+  # 0 또는 1 = 순차 처리 (단일 스레드)
+  # > 1 = 병렬 처리 (N개 워커)
+  # 권장값: CPU 코어 수 또는 2-4
+  workers: 1
+
+# 출력 설정
 output:
-  # Output file path
-  # If empty or not specified, auto-generates based on input filename
-  # Examples: "output.csv", "/tmp/result.tsv", "./output/data.csv"
+  # 출력 파일 경로
+  # 빈 문자열 = 입력 파일명 기반 자동 생성
   file: ""
+  # 진행 상황 표시 여부
+  show_progress: true
+  # 응답 본문 표시 여부
+  show_body: false
+  # 상세 로그 출력 여부
+  verbose: false
+

@@ -10,51 +10,82 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server     ServerConfig     `yaml:"server"`
-	Processing ProcessingConfig `yaml:"processing"`
+	API        APIConfig        `yaml:"api"`
+	Protection ProtectionConfig `yaml:"protection"`
+	File       FileConfig       `yaml:"file"`
+	Batch      BatchConfig      `yaml:"batch"`
+	Parallel   ParallelConfig   `yaml:"parallel"`
 	Output     OutputConfig     `yaml:"output"`
 }
 
-// ServerConfig represents CRDP server settings
-type ServerConfig struct {
+// APIConfig represents CRDP API connection settings
+type APIConfig struct {
 	Host    string `yaml:"host"`
 	Port    int    `yaml:"port"`
-	Policy  string `yaml:"policy"`
 	Timeout int    `yaml:"timeout"`
+	TLS     bool   `yaml:"tls"`
 }
 
-// ProcessingConfig represents file processing settings
-type ProcessingConfig struct {
-	Delimiter        string `yaml:"delimiter"`
-	Column           int    `yaml:"column"`
-	BatchSize        int    `yaml:"batch_size"`
-	SkipHeader       bool   `yaml:"skip_header"`
-	ParallelWorkers  int    `yaml:"parallel_workers"`
+// ProtectionConfig represents data protection settings
+type ProtectionConfig struct {
+	Policy string `yaml:"policy"`
+}
+
+// FileConfig represents file processing settings
+type FileConfig struct {
+	Delimiter  string `yaml:"delimiter"`
+	Column     int    `yaml:"column"`
+	SkipHeader bool   `yaml:"skip_header"`
+}
+
+// BatchConfig represents batch processing settings
+type BatchConfig struct {
+	Enabled bool `yaml:"enabled"`
+	Size    int  `yaml:"size"`
+}
+
+// ParallelConfig represents parallel processing settings
+type ParallelConfig struct {
+	Workers int `yaml:"workers"`
 }
 
 // OutputConfig represents output settings
 type OutputConfig struct {
-	File string `yaml:"file"`
+	File        string `yaml:"file"`
+	ShowProgress bool   `yaml:"show_progress"`
+	ShowBody    bool   `yaml:"show_body"`
+	Verbose     bool   `yaml:"verbose"`
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		Server: ServerConfig{
-			Host:    "localhost",
-			Port:    8080,
-			Policy:  "P03",
+		API: APIConfig{
+			Host:    "192.168.0.231",
+			Port:    32082,
 			Timeout: 30,
+			TLS:     false,
 		},
-		Processing: ProcessingConfig{
-			Delimiter:       ",",
-			Column:          0,
-			BatchSize:       100,
-			SkipHeader:      false,
-			ParallelWorkers: 1,
+		Protection: ProtectionConfig{
+			Policy: "P03",
+		},
+		File: FileConfig{
+			Delimiter:  ",",
+			Column:     0,
+			SkipHeader: false,
+		},
+		Batch: BatchConfig{
+			Enabled: true,
+			Size:    100,
+		},
+		Parallel: ParallelConfig{
+			Workers: 1,
 		},
 		Output: OutputConfig{
-			File: "",
+			File:        "",
+			ShowProgress: true,
+			ShowBody:    false,
+			Verbose:     false,
 		},
 	}
 }
@@ -129,24 +160,24 @@ func (c *Config) SaveConfig(filePath string) error {
 
 // Validate validates the configuration
 func (c *Config) Validate() error {
-	if c.Server.Port <= 0 || c.Server.Port > 65535 {
-		return fmt.Errorf("invalid port: %d (must be 1-65535)", c.Server.Port)
+	if c.API.Port <= 0 || c.API.Port > 65535 {
+		return fmt.Errorf("invalid api.port: %d (must be 1-65535)", c.API.Port)
 	}
 
-	if c.Server.Timeout <= 0 {
-		return fmt.Errorf("invalid timeout: %d (must be positive)", c.Server.Timeout)
+	if c.API.Timeout <= 0 {
+		return fmt.Errorf("invalid api.timeout: %d (must be positive)", c.API.Timeout)
 	}
 
-	if c.Processing.Column < 0 {
-		return fmt.Errorf("invalid column: %d (must be non-negative)", c.Processing.Column)
+	if c.File.Column < 0 {
+		return fmt.Errorf("invalid file.column: %d (must be non-negative)", c.File.Column)
 	}
 
-	if c.Processing.BatchSize <= 0 {
-		return fmt.Errorf("invalid batch_size: %d (must be positive)", c.Processing.BatchSize)
+	if c.Batch.Size <= 0 {
+		return fmt.Errorf("invalid batch.size: %d (must be positive)", c.Batch.Size)
 	}
 
-	if c.Processing.ParallelWorkers < 0 {
-		return fmt.Errorf("invalid parallel_workers: %d (must be non-negative)", c.Processing.ParallelWorkers)
+	if c.Parallel.Workers < 0 {
+		return fmt.Errorf("invalid parallel.workers: %d (must be non-negative)", c.Parallel.Workers)
 	}
 
 	return nil

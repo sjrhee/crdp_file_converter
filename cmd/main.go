@@ -59,31 +59,31 @@ func runConversion(cmd *cobra.Command, args []string) {
 	// Apply config defaults if flags not explicitly set
 	// Check if flag was explicitly provided by comparing with default
 	if !cmd.Flags().Changed("delimiter") {
-		delimiter = cfg.Processing.Delimiter
+		delimiter = cfg.File.Delimiter
 	}
 	if !cmd.Flags().Changed("column") {
-		column = cfg.Processing.Column
+		column = cfg.File.Column
 	}
 	if !cmd.Flags().Changed("batch-size") {
-		batchSize = cfg.Processing.BatchSize
+		batchSize = cfg.Batch.Size
 	}
 	if !cmd.Flags().Changed("skip-header") {
-		skipHeader = cfg.Processing.SkipHeader
+		skipHeader = cfg.File.SkipHeader
 	}
 	if !cmd.Flags().Changed("parallel") {
-		parallel = cfg.Processing.ParallelWorkers
+		parallel = cfg.Parallel.Workers
 	}
 	if !cmd.Flags().Changed("host") {
-		host = cfg.Server.Host
+		host = cfg.API.Host
 	}
 	if !cmd.Flags().Changed("port") {
-		port = cfg.Server.Port
+		port = cfg.API.Port
 	}
 	if !cmd.Flags().Changed("policy") {
-		policy = cfg.Server.Policy
+		policy = cfg.Protection.Policy
 	}
 	if !cmd.Flags().Changed("timeout") {
-		timeout = cfg.Server.Timeout
+		timeout = cfg.API.Timeout
 	}
 	if !cmd.Flags().Changed("output") {
 		output = cfg.Output.File
