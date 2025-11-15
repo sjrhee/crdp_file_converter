@@ -98,8 +98,6 @@ func runConversion(cmd *cobra.Command, args []string) {
 	); err != nil {
 		log.Fatalf("❌ Error: %v", err)
 	}
-
-	log.Printf("✅ Conversion completed: %s", output)
 }
 
 // promptSkipHeader asks user whether to skip the header line

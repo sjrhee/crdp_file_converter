@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 )
@@ -138,8 +137,6 @@ func (c *Client) postJSON(endpoint string, payload interface{}) *APIResponse {
 	} else {
 		bodyInterface = ""
 	}
-
-	log.Printf("[%s] Status: %d, Response: %v", endpoint, resp.StatusCode, bodyInterface)
 
 	return &APIResponse{
 		StatusCode: resp.StatusCode,

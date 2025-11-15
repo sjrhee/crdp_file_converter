@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"crdp-file-converter/pkg/crdp"
 )
@@ -43,6 +44,8 @@ func (dc *DumpConverter) ProcessFile(
 	skipHeader bool,
 	batchSize int,
 ) error {
+	startTime := time.Now()
+	
 	// Validate operation
 	if operation != "protect" && operation != "reveal" {
 		return fmt.Errorf("operation must be 'protect' or 'reveal'")
@@ -53,9 +56,7 @@ func (dc *DumpConverter) ProcessFile(
 		return fmt.Errorf("input file not found: %s", inputFile)
 	}
 
-	log.Printf("Starting file processing: %s", inputFile)
-	log.Printf("Output file: %s", outputFile)
-	log.Printf("Delimiter: '%s', Column: %d, Operation: %s (Bulk Mode)", delimiter, columnIndex, operation)
+	log.Printf("[%s] Starting file processing: %s", startTime.Format("15:04:05"), inputFile)
 
 	// Read input file and collect data to convert
 	rows, dataToConvert, err := dc.readAndCollectData(inputFile, delimiter, columnIndex, skipHeader)
@@ -75,7 +76,7 @@ func (dc *DumpConverter) ProcessFile(
 	log.Printf("Total %d rows, %d rows to convert (batch size: %d)", totalRows, convertCount, batchSize)
 
 	// Perform bulk conversion
-	convertedList, err := dc.performBulkConversion(operation, dataToConvert, batchSize)
+	convertedList, err := dc.performBulkConversion(operation, dataToConvert, batchSize, convertCount)
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,13 @@ func (dc *DumpConverter) ProcessFile(
 	}
 
 	// Write converted output
-	return dc.writeConvertedOutput(outputFile, delimiter, rows, columnIndex, dataToConvert, convertedList)
+	err = dc.writeConvertedOutput(outputFile, delimiter, rows, columnIndex, dataToConvert, convertedList)
+	
+	// Log completion with end time
+	endTime := time.Now()
+	log.Printf("[%s] ✅ Conversion completed: %s (took %.2fs)", endTime.Format("15:04:05"), outputFile, endTime.Sub(startTime).Seconds())
+	
+	return err
 }
 
 // readAndCollectData reads CSV file and extracts data to be converted
@@ -199,7 +206,7 @@ func DetectHeaderLine(inputFile string, delimiter string, columnIndex int) (bool
 }
 
 // performBulkConversion calls CRDP API in batches and collects converted data
-func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert []string, batchSize int) ([]string, error) {
+func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert []string, batchSize int, totalCount int) ([]string, error) {
 	// Split data into batches
 	batches := make([][]string, 0)
 	for i := 0; i < len(dataToConvert); i += batchSize {
@@ -210,13 +217,11 @@ func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert [
 		batches = append(batches, dataToConvert[i:end])
 	}
 
-	log.Printf("Processing %d batches", len(batches))
-
 	var convertedList []string
+	processedCount := 0
+	progressBar := ""
 
 	for batchIdx, batchData := range batches {
-		log.Printf("Processing batch %d/%d (%d items)", batchIdx+1, len(batches), len(batchData))
-
 		// Call appropriate CRDP API
 		var resp *crdp.APIResponse
 		if operation == "protect" {
@@ -224,8 +229,6 @@ func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert [
 		} else {
 			resp = dc.client.RevealBulk(batchData)
 		}
-
-		log.Printf("Batch %d response - Status: %d, Body: %v, Error: %v", batchIdx+1, resp.StatusCode, resp.Body, resp.Error)
 
 		// Check for errors
 		if !resp.IsSuccess() {
@@ -240,22 +243,27 @@ func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert [
 			batchConverted = dc.client.ExtractRestoredListFromRevealResponse(resp)
 		}
 
-		log.Printf("Batch %d extracted %d items", batchIdx+1, len(batchConverted))
-
 		// Handle partial results - pad with empty strings if needed
 		if len(batchConverted) != len(batchData) {
-			log.Printf("Warning: batch %d result count mismatch: requested %d, got %d (continuing with what we have)", 
-				batchIdx+1, len(batchData), len(batchConverted))
 			for i := len(batchConverted); i < len(batchData); i++ {
 				batchConverted = append(batchConverted, "")
 			}
 		}
 
 		convertedList = append(convertedList, batchConverted...)
-		log.Printf("Batch %d completed: %d items processed", batchIdx+1, len(batchConverted))
+		processedCount += len(batchConverted)
+
+		// Update progress bar (one character per 100 items)
+		progressCount := processedCount / 100
+		for progressLen := len(progressBar); progressLen < progressCount; progressLen++ {
+			progressBar += "█"
+		}
+		
+		// Show progress
+		fmt.Printf("\rProcessing: [%-50s] %d/%d", progressBar, processedCount, totalCount)
 	}
 
-	log.Println("✅ Bulk conversion completed!")
+	fmt.Printf("\rProcessing: [%-50s] %d/%d\n", progressBar, processedCount, totalCount)
 	return convertedList, nil
 }
 
@@ -319,7 +327,6 @@ func (dc *DumpConverter) writeConvertedOutput(
 		return err
 	}
 
-	log.Printf("Success: %d, Errors: %d", processedCount, errorCount)
 	return nil
 }
 
