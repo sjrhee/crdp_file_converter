@@ -369,3 +369,20 @@ done
 ## 라이선스
 
 이 프로젝트는 MIT 라이선스를 따릅니다.
+
+## 샘플 데이터
+
+프로젝트에 포함된 샘플 파일:
+
+- **sample_data.csv**: 작은 테스트 파일 (10개 데이터 행 + 헤더)
+- **sample_data_large.csv**: 대규모 테스트 파일 (30,000개 데이터 행 + 헤더)
+
+### 샘플 파일로 테스트
+
+```bash
+# 작은 파일 테스트
+./crdp-file-converter sample_data.csv -c 1 -e
+
+# 대규모 파일 테스트 (성능 측정용)
+./crdp-file-converter sample_data_large.csv -c 1 -e
+```
