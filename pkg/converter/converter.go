@@ -119,8 +119,11 @@ func (dc *DumpConverter) readAndCollectData(inputFile string, delimiter string, 
 
 		lineNum++
 
-		// Process header line
-		if skipHeader && lineNum == 1 {
+		// Auto-detect header: if first row contains non-numeric or mixed data, treat as header
+		// Or explicitly skip header if skipHeader flag is set
+		shouldSkipThisLine := (lineNum == 1 && !isNumericRow(record, columnIndex)) || (skipHeader && lineNum == 1)
+		
+		if shouldSkipThisLine {
 			rows = append(rows, map[string]interface{}{
 				"type": "header",
 				"row":  record,
@@ -162,6 +165,19 @@ func (dc *DumpConverter) readAndCollectData(inputFile string, delimiter string, 
 	}
 
 	return rows, dataToConvert, nil
+}
+
+// isNumericRow checks if the value at columnIndex looks like a number
+func isNumericRow(record []string, columnIndex int) bool {
+	if columnIndex >= len(record) {
+		return false
+	}
+	val := strings.TrimSpace(record[columnIndex])
+	if val == "" {
+		return false
+	}
+	// Check if value starts with digit (likely numeric data, not a header)
+	return val[0] >= '0' && val[0] <= '9'
 }
 
 // performBulkConversion calls CRDP API in batches and collects converted data
