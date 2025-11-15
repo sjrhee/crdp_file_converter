@@ -511,13 +511,8 @@ func (dc *DumpConverter) ProcessFileParallel(
 		go func(idx int, splitFile SplitFileResult) {
 			defer wg.Done()
 
-			// Create output file for this split
-			baseExt := ""
-			if idx > 0 {
-				baseExt = fmt.Sprintf(".part%d", idx+1)
-			}
-			splitOutput := outputFile + baseExt
-
+			// Create output file for this split - ALL parts get .part suffix
+			splitOutput := fmt.Sprintf("%s.part%d", outputFile, idx+1)
 			outputFiles[idx] = splitOutput
 
 			log.Printf("[Part %d] Processing %s -> %s (%d rows)", idx+1, splitFile.FilePath, splitOutput, splitFile.LineCount)
@@ -553,10 +548,9 @@ func (dc *DumpConverter) ProcessFileParallel(
 	for _, split := range splits {
 		os.Remove(split.FilePath)
 	}
+	// Clean up all part files
 	for _, outFile := range outputFiles {
-		if outFile != outputFile {
-			os.Remove(outFile)
-		}
+		os.Remove(outFile)
 	}
 
 	return nil
@@ -575,9 +569,7 @@ func (dc *DumpConverter) mergeOutputFiles(inputFiles []string, outputFile string
 		writer.Comma = rune(delimiter[0])
 	}
 
-	headerWritten := false
-
-	for _, inputFile := range inputFiles {
+	for fileIdx, inputFile := range inputFiles {
 		file, err := os.Open(inputFile)
 		if err != nil {
 			return fmt.Errorf("failed to open file for merging: %w", err)
@@ -594,15 +586,13 @@ func (dc *DumpConverter) mergeOutputFiles(inputFiles []string, outputFile string
 				break
 			}
 
-			// Skip header from non-first files
-			if i == 0 && skipHeader && headerWritten {
+			// Skip header only from non-first files
+			// Part files already have headers, so skip them when merging
+			if i == 0 && fileIdx > 0 {
 				continue
 			}
 
 			writer.Write(record)
-			if i == 0 && skipHeader {
-				headerWritten = true
-			}
 		}
 
 		file.Close()
