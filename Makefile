@@ -31,6 +31,7 @@ test-cov:
 
 clean:
 	rm -f $(BINARY_NAME)
+	rm -f e[0-9][0-9]_*\.csv d[0-9][0-9]_*\.csv
 	rm -f coverage.out coverage.html
 	$(GO) clean
 

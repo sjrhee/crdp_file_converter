@@ -1,8 +1,6 @@
 # CRDP File Converter (Go)
 
-CRDP (CipherTrust RESTful Data Protection) 서비스를 사용하여 텍스트 파일의 특정 컬럼 데이터를 암호화(protect) 또는 복호화(reveal)하는 Go 도구입니다.
-
-Python 버전의 기능을 Go로 완벽하게 구현했습니다.
+CRDP (CipherTrust RESTful Data Protection) 서비스를 사용하여 텍스트 파일의 특정 컬럼 데이터를 암호화(protect) 또는 복호화(reveal)하는 도구입니다.
 
 > 참고: 모든 프로젝트에서 동일한 CRDP 서버 설정을 사용합니다.
 
