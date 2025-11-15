@@ -31,7 +31,24 @@ go mod download
 ### 빌드
 
 ```bash
+# 현재 OS용 빌드
 go build -o crdp-file-converter ./cmd
+```
+
+또는 Makefile 사용:
+
+```bash
+# 현재 OS용 빌드
+make build
+
+# 크로스플랫폼 빌드 (Linux, Darwin/macOS, Windows)
+make build-cross
+# 생성 위치: bin/ 디렉토리
+#   - bin/crdp-file-converter-linux-amd64
+#   - bin/crdp-file-converter-linux-arm64
+#   - bin/crdp-file-converter-darwin-amd64
+#   - bin/crdp-file-converter-darwin-arm64
+#   - bin/crdp-file-converter-windows-amd64.exe
 ```
 
 또는 개발 모드에서 직접 실행:
