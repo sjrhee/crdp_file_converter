@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"crdp-file-converter/pkg/crdp"
 )
@@ -44,8 +43,6 @@ func (dc *DumpConverter) ProcessFile(
 	skipHeader bool,
 	batchSize int,
 ) error {
-	startTime := time.Now()
-	
 	// Validate operation
 	if operation != "protect" && operation != "reveal" {
 		return fmt.Errorf("operation must be 'protect' or 'reveal'")
@@ -55,8 +52,6 @@ func (dc *DumpConverter) ProcessFile(
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return fmt.Errorf("input file not found: %s", inputFile)
 	}
-
-	log.Printf("[%s] Starting file processing: %s", startTime.Format("15:04:05"), inputFile)
 
 	// Read input file and collect data to convert
 	rows, dataToConvert, err := dc.readAndCollectData(inputFile, delimiter, columnIndex, skipHeader)
@@ -87,12 +82,14 @@ func (dc *DumpConverter) ProcessFile(
 
 	// Write converted output
 	err = dc.writeConvertedOutput(outputFile, delimiter, rows, columnIndex, dataToConvert, convertedList)
+	if err != nil {
+		return err
+	}
 	
-	// Log completion with end time
-	endTime := time.Now()
-	log.Printf("[%s] ✅ Conversion completed: %s (took %.2fs)", endTime.Format("15:04:05"), outputFile, endTime.Sub(startTime).Seconds())
+	// Report summary
+	log.Printf("✅ Conversion completed: %s (%d/%d rows processed)", outputFile, totalRows, totalRows)
 	
-	return err
+	return nil
 }
 
 // readAndCollectData reads CSV file and extracts data to be converted
@@ -219,7 +216,7 @@ func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert [
 
 	var convertedList []string
 	processedCount := 0
-	progressBar := ""
+	barWidth := 50
 
 	for batchIdx, batchData := range batches {
 		// Call appropriate CRDP API
@@ -253,17 +250,30 @@ func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert [
 		convertedList = append(convertedList, batchConverted...)
 		processedCount += len(batchConverted)
 
-		// Update progress bar (one character per 100 items)
-		progressCount := processedCount / 100
-		for progressLen := len(progressBar); progressLen < progressCount; progressLen++ {
-			progressBar += "█"
+		// Calculate progress percentage
+		percent := (processedCount * 100) / totalCount
+		filledChars := (processedCount * barWidth) / totalCount
+		
+		// Build progress bar
+		progressBar := ""
+		for i := 0; i < barWidth; i++ {
+			if i < filledChars {
+				progressBar += "█"
+			} else {
+				progressBar += "░"
+			}
 		}
 		
 		// Show progress
-		fmt.Printf("\rProcessing: [%-50s] %d/%d", progressBar, processedCount, totalCount)
+		fmt.Printf("\rProcessing: [%s] %d%% (%d/%d)", progressBar, percent, processedCount, totalCount)
 	}
 
-	fmt.Printf("\rProcessing: [%-50s] %d/%d\n", progressBar, processedCount, totalCount)
+	// Final progress bar at 100%
+	progressBar := ""
+	for i := 0; i < barWidth; i++ {
+		progressBar += "█"
+	}
+	fmt.Printf("\rProcessing: [%s] 100%% (%d/%d)\n", progressBar, totalCount, totalCount)
 	return convertedList, nil
 }
 
