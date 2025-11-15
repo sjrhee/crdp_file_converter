@@ -1,0 +1,49 @@
+.PHONY: build test clean run help fmt lint
+
+# Variables
+BINARY_NAME=crdp-file-converter
+GO=go
+GOFLAGS=-v
+
+help:
+	@echo "Available targets:"
+	@echo "  build       - Build the project"
+	@echo "  test        - Run tests"
+	@echo "  test-cov    - Run tests with coverage"
+	@echo "  clean       - Clean build artifacts"
+	@echo "  fmt         - Format code"
+	@echo "  lint        - Run linter (requires golangci-lint)"
+	@echo "  run         - Run the application (requires arguments)"
+	@echo "  install     - Install dependencies"
+	@echo "  help        - Show this help message"
+
+build:
+	$(GO) build -o $(BINARY_NAME) ./cmd
+
+test:
+	$(GO) test $(GOFLAGS) ./...
+
+test-cov:
+	$(GO) test -cover ./...
+	$(GO) test -coverprofile=coverage.out ./...
+	$(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
+
+clean:
+	rm -f $(BINARY_NAME)
+	rm -f coverage.out coverage.html
+	$(GO) clean
+
+fmt:
+	$(GO) fmt ./...
+	gofmt -w .
+
+lint:
+	golangci-lint run ./...
+
+install:
+	$(GO) mod download
+	$(GO) mod tidy
+
+run: build
+	./$(BINARY_NAME) sample_data.csv --column 1 --operation protect --skip-header

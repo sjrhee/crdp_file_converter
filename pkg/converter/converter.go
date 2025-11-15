@@ -1,0 +1,318 @@
+package converter
+
+import (
+	"encoding/csv"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	"crdp-file-converter/pkg/crdp"
+)
+
+// DumpConverter handles file conversion with CRDP API
+type DumpConverter struct {
+	client *crdp.Client
+	host   string
+	port   int
+	policy string
+}
+
+// NewDumpConverter creates a new DumpConverter instance with CRDP client
+func NewDumpConverter(host string, port int, policy string, timeout int) *DumpConverter {
+	client := crdp.NewClient(host, port, policy, timeout)
+	return &DumpConverter{
+		client: client,
+		host:   host,
+		port:   port,
+		policy: policy,
+	}
+}
+
+// ProcessFile orchestrates the complete file conversion workflow:
+// 1. Read and parse input CSV/TSV file
+// 2. Extract data to be converted
+// 3. Perform bulk conversion via CRDP API
+// 4. Write results to output file
+func (dc *DumpConverter) ProcessFile(
+	inputFile string,
+	outputFile string,
+	delimiter string,
+	columnIndex int,
+	operation string,
+	skipHeader bool,
+	batchSize int,
+) error {
+	// Validate operation
+	if operation != "protect" && operation != "reveal" {
+		return fmt.Errorf("operation must be 'protect' or 'reveal'")
+	}
+
+	// Validate input file exists
+	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
+		return fmt.Errorf("input file not found: %s", inputFile)
+	}
+
+	log.Printf("Starting file processing: %s", inputFile)
+	log.Printf("Output file: %s", outputFile)
+	log.Printf("Delimiter: '%s', Column: %d, Operation: %s (Bulk Mode)", delimiter, columnIndex, operation)
+
+	// Read input file and collect data to convert
+	rows, dataToConvert, err := dc.readAndCollectData(inputFile, delimiter, columnIndex, skipHeader)
+	if err != nil {
+		return err
+	}
+
+	totalRows := len(rows)
+	convertCount := len(dataToConvert)
+
+	// Handle case where no data needs conversion
+	if convertCount == 0 {
+		log.Println("No data to convert.")
+		return dc.writeOutput(outputFile, delimiter, rows)
+	}
+
+	log.Printf("Total %d rows, %d rows to convert (batch size: %d)", totalRows, convertCount, batchSize)
+
+	// Perform bulk conversion
+	convertedList, err := dc.performBulkConversion(operation, dataToConvert, batchSize)
+	if err != nil {
+		return err
+	}
+
+	if len(convertedList) != len(dataToConvert) {
+		return fmt.Errorf("result count mismatch: requested %d, got %d", len(dataToConvert), len(convertedList))
+	}
+
+	// Write converted output
+	return dc.writeConvertedOutput(outputFile, delimiter, rows, columnIndex, dataToConvert, convertedList)
+}
+
+// readAndCollectData reads CSV file and extracts data to be converted
+// It returns:
+// - rows: all rows with metadata about how they should be processed
+// - dataToConvert: extracted data values for CRDP API
+// - error: any read error
+func (dc *DumpConverter) readAndCollectData(inputFile string, delimiter string, columnIndex int, skipHeader bool) (
+	[]map[string]interface{},
+	[]string,
+	error,
+) {
+	file, err := os.Open(inputFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer file.Close()
+
+	r := csv.NewReader(file)
+	r.Comma = rune(delimiter[0])
+
+	var rows []map[string]interface{}
+	var dataToConvert []string
+	lineNum := 0
+
+	for {
+		record, err := r.Read()
+		if err != nil {
+			break
+		}
+
+		lineNum++
+
+		// Process header line
+		if skipHeader && lineNum == 1 {
+			rows = append(rows, map[string]interface{}{
+				"type": "header",
+				"row":  record,
+				"data": nil,
+			})
+			continue
+		}
+
+		// Validate column index exists
+		if columnIndex >= len(record) {
+			log.Printf("Warning: line %d does not have column %d (total columns: %d)", lineNum, columnIndex, len(record))
+			rows = append(rows, map[string]interface{}{
+				"type": "skip",
+				"row":  record,
+				"data": nil,
+			})
+			continue
+		}
+
+		originalData := record[columnIndex]
+
+		// Skip empty values
+		if strings.TrimSpace(originalData) == "" {
+			rows = append(rows, map[string]interface{}{
+				"type": "empty",
+				"row":  record,
+				"data": nil,
+			})
+			continue
+		}
+
+		// Mark for conversion
+		rows = append(rows, map[string]interface{}{
+			"type": "convert",
+			"row":  record,
+			"data": originalData,
+		})
+		dataToConvert = append(dataToConvert, originalData)
+	}
+
+	return rows, dataToConvert, nil
+}
+
+// performBulkConversion calls CRDP API in batches and collects converted data
+func (dc *DumpConverter) performBulkConversion(operation string, dataToConvert []string, batchSize int) ([]string, error) {
+	// Split data into batches
+	batches := make([][]string, 0)
+	for i := 0; i < len(dataToConvert); i += batchSize {
+		end := i + batchSize
+		if end > len(dataToConvert) {
+			end = len(dataToConvert)
+		}
+		batches = append(batches, dataToConvert[i:end])
+	}
+
+	log.Printf("Processing %d batches", len(batches))
+
+	var convertedList []string
+
+	for batchIdx, batchData := range batches {
+		log.Printf("Processing batch %d/%d (%d items)", batchIdx+1, len(batches), len(batchData))
+
+		// Call appropriate CRDP API
+		var resp *crdp.APIResponse
+		if operation == "protect" {
+			resp = dc.client.ProtectBulk(batchData)
+		} else {
+			resp = dc.client.RevealBulk(batchData)
+		}
+
+		log.Printf("Batch %d response - Status: %d, Body: %v, Error: %v", batchIdx+1, resp.StatusCode, resp.Body, resp.Error)
+
+		// Check for errors
+		if !resp.IsSuccess() {
+			return nil, fmt.Errorf("batch %d API call failed: %d - %v", batchIdx+1, resp.StatusCode, resp.Body)
+		}
+
+		// Extract converted data from response
+		var batchConverted []string
+		if operation == "protect" {
+			batchConverted = dc.client.ExtractProtectedListFromProtectResponse(resp)
+		} else {
+			batchConverted = dc.client.ExtractRestoredListFromRevealResponse(resp)
+		}
+
+		log.Printf("Batch %d extracted %d items", batchIdx+1, len(batchConverted))
+
+		// Handle partial results - pad with empty strings if needed
+		if len(batchConverted) != len(batchData) {
+			log.Printf("Warning: batch %d result count mismatch: requested %d, got %d (continuing with what we have)", 
+				batchIdx+1, len(batchData), len(batchConverted))
+			for i := len(batchConverted); i < len(batchData); i++ {
+				batchConverted = append(batchConverted, "")
+			}
+		}
+
+		convertedList = append(convertedList, batchConverted...)
+		log.Printf("Batch %d completed: %d items processed", batchIdx+1, len(batchConverted))
+	}
+
+	log.Println("✅ Bulk conversion completed!")
+	return convertedList, nil
+}
+
+// writeConvertedOutput writes the conversion results to output file
+func (dc *DumpConverter) writeConvertedOutput(
+	outputFile string,
+	delimiter string,
+	rows []map[string]interface{},
+	columnIndex int,
+	originalData []string,
+	convertedData []string,
+) error {
+	file, err := os.Create(outputFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	w := csv.NewWriter(file)
+	w.Comma = rune(delimiter[0])
+
+	processedCount := 0
+	errorCount := 0
+	convertIndex := 0
+
+	for _, rowMap := range rows {
+		rowType := rowMap["type"].(string)
+		row := rowMap["row"].([]string)
+
+		switch rowType {
+		case "header", "skip", "empty":
+			// Write as-is
+			w.Write(row)
+		case "convert":
+			// Replace column value with converted data
+			if convertIndex >= len(convertedData) {
+				errorCount++
+				w.Write(row)
+				convertIndex++
+				continue
+			}
+
+			convertedValue := convertedData[convertIndex]
+			if convertedValue == "" {
+				log.Printf("Warning: converted value is empty (index: %d)", convertIndex)
+				errorCount++
+			} else {
+				processedCount++
+			}
+
+			newRow := make([]string, len(row))
+			copy(newRow, row)
+			newRow[columnIndex] = convertedValue
+			w.Write(newRow)
+			convertIndex++
+		}
+	}
+
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return err
+	}
+
+	log.Printf("Success: %d, Errors: %d", processedCount, errorCount)
+	return nil
+}
+
+// writeOutput writes rows to output file without conversion
+func (dc *DumpConverter) writeOutput(outputFile string, delimiter string, rows []map[string]interface{}) error {
+	file, err := os.Create(outputFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	w := csv.NewWriter(file)
+	w.Comma = rune(delimiter[0])
+
+	for _, rowMap := range rows {
+		row := rowMap["row"].([]string)
+		w.Write(row)
+	}
+
+	w.Flush()
+	return w.Error()
+}
+
+// Close closes the converter and underlying resources
+func (dc *DumpConverter) Close() error {
+	if dc.client != nil {
+		return dc.client.Close()
+	}
+	return nil
+}

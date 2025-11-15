@@ -1,0 +1,27 @@
+# Go build output
+crdp-file-converter
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go test output
+*.test
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+/bin/
+/dist/
+
+# Dependencies
+vendor/
+
+# Output files
+out/*.csv
