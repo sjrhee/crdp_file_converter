@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -56,6 +58,19 @@ func runConversion(cmd *cobra.Command, args []string) {
 		operation = "reveal"
 	}
 
+	// Auto-detect header if -s flag is not set
+	if !skipHeader {
+		hasHeader, err := converter.DetectHeaderLine(inputFile, delimiter, column)
+		if err != nil {
+			log.Fatalf("❌ Error detecting header: %v", err)
+		}
+
+		if hasHeader {
+			// Ask user for confirmation
+			skipHeader = promptSkipHeader()
+		}
+	}
+
 	// Generate output file path if not specified
 	if output == "" {
 		var err error
@@ -85,6 +100,23 @@ func runConversion(cmd *cobra.Command, args []string) {
 	}
 
 	log.Printf("✅ Conversion completed: %s", output)
+}
+
+// promptSkipHeader asks user whether to skip the header line
+// Returns true if user confirms (Y or just presses Enter)
+func promptSkipHeader() bool {
+	fmt.Print("Skip header line? (Y/n): ")
+	
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return true // Default to skip on error
+	}
+
+	input = strings.TrimSpace(strings.ToLower(input))
+	
+	// Empty input (just Enter) or "y" means skip
+	return input == "" || input == "y" || input == "yes"
 }
 
 // validateOperationFlags ensures exactly one of encode/decode is specified

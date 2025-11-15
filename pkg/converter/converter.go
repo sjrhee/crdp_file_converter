@@ -119,11 +119,8 @@ func (dc *DumpConverter) readAndCollectData(inputFile string, delimiter string, 
 
 		lineNum++
 
-		// Auto-detect header: if first row contains non-numeric or mixed data, treat as header
-		// Or explicitly skip header if skipHeader flag is set
-		shouldSkipThisLine := (lineNum == 1 && !isNumericRow(record, columnIndex)) || (skipHeader && lineNum == 1)
-		
-		if shouldSkipThisLine {
+		// Skip first line only if skipHeader flag is set
+		if skipHeader && lineNum == 1 {
 			rows = append(rows, map[string]interface{}{
 				"type": "header",
 				"row":  record,
@@ -178,6 +175,27 @@ func isNumericRow(record []string, columnIndex int) bool {
 	}
 	// Check if value starts with digit (likely numeric data, not a header)
 	return val[0] >= '0' && val[0] <= '9'
+}
+
+// DetectHeaderLine checks if the input file appears to have a header line
+// Returns true if first line looks like a header (non-numeric text)
+func DetectHeaderLine(inputFile string, delimiter string, columnIndex int) (bool, error) {
+	file, err := os.Open(inputFile)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	r := csv.NewReader(file)
+	r.Comma = rune(delimiter[0])
+
+	record, err := r.Read()
+	if err != nil {
+		return false, err
+	}
+
+	// If first row value is not numeric, it's likely a header
+	return !isNumericRow(record, columnIndex), nil
 }
 
 // performBulkConversion calls CRDP API in batches and collects converted data
