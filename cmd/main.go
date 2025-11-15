@@ -231,9 +231,6 @@ func init() {
 	// Disable flag sorting to maintain custom definition order
 	rootCmd.Flags().SortFlags = false
 
-	// Config file flag
-	rootCmd.Flags().StringVar(&configFile, "config", "", "Configuration file path (default: searches config.yaml in current dir, ~/.crdp/, /etc/crdp/)")
-
 	// Core operation flags
 	rootCmd.Flags().BoolVarP(&encode, "encode", "e", false, "Encode (protect) data")
 	rootCmd.Flags().BoolVarP(&decode, "decode", "d", false, "Decode (reveal) data")
@@ -251,6 +248,9 @@ func init() {
 	rootCmd.Flags().IntVar(&port, "port", 32082, "CRDP port")
 	rootCmd.Flags().StringVar(&policy, "policy", "P03", "Protection policy")
 	rootCmd.Flags().IntVar(&timeout, "timeout", 5, "Request timeout in seconds")
+
+	// Config file flag
+	rootCmd.Flags().StringVar(&configFile, "config", "", "Configuration file path (default: searches config.yaml in current dir, ~/.crdp/, /etc/crdp/)")
 
 	// Mark required flags
 	rootCmd.MarkFlagRequired("column")
