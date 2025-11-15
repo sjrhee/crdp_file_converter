@@ -1,0 +1,57 @@
+# CRDP File Converter Configuration
+# 
+# This configuration file allows you to customize default values for CLI options.
+# Command-line flags override these default values.
+# 
+# Example usage:
+#   crdp-file-converter data.csv --column 1 --encode
+#   (uses values from this config file for non-specified options)
+
+# CRDP Server settings
+server:
+  # CRDP API server hostname or IP address
+  host: localhost
+  
+  # CRDP API server port
+  port: 8080
+  
+  # Data protection policy name
+  policy: P03
+  
+  # API request timeout in seconds
+  timeout: 30
+
+# File processing settings
+processing:
+  # Column delimiter (comma for CSV, tab for TSV)
+  # Common values: "," (CSV) or "\t" (TSV)
+  delimiter: ","
+  
+  # Target column index (0-based indexing)
+  # Example: 0 = first column, 1 = second column
+  column: 0
+  
+  # Number of rows to send in each API batch request
+  # Larger values: fewer API calls but more memory usage
+  # Smaller values: more API calls but less memory usage
+  # Recommended: 50-200
+  batch_size: 100
+  
+  # Whether to skip the first row (header row)
+  # true = first row is header and will not be processed
+  # false = all rows including first will be processed
+  skip_header: false
+  
+  # Parallel processing settings
+  # Number of worker threads for parallel file processing
+  # 0 or 1 = sequential processing (single-threaded)
+  # > 1 = parallel processing with N workers
+  # Recommended: 2-4 for 10-100MB files, 4-8 for >100MB files
+  parallel_workers: 1
+
+# Output settings
+output:
+  # Output file path
+  # If empty or not specified, auto-generates based on input filename
+  # Examples: "output.csv", "/tmp/result.tsv", "./output/data.csv"
+  file: ""

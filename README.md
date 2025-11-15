@@ -149,6 +149,77 @@ Flags:
 ./crdp-file-converter data.csv -c 1 -d -s
 ```
 
+## 설정 파일 (config.yaml)
+
+기본값을 명령줄 인자마다 지정하는 대신, `config.yaml` 파일로 관리할 수 있습니다.
+
+### 설정 파일 위치 (자동 검색 순서)
+
+1. `./config.yaml` (현재 디렉토리)
+2. `./config.yml` (현재 디렉토리)
+3. `~/.crdp/config.yaml` (홈 디렉토리 하위)
+4. `/etc/crdp/config.yaml` (시스템 설정)
+
+또는 명시적으로 지정:
+```bash
+./crdp-file-converter data.csv --column 1 --encode --config /path/to/config.yaml
+```
+
+### 설정 파일 형식
+
+`config.yaml` 예시:
+```yaml
+# CRDP Server settings
+server:
+  host: 192.168.0.231
+  port: 32082
+  policy: P03
+  timeout: 30
+
+# File processing settings
+processing:
+  delimiter: ","
+  column: 1                # 기본 컬럼 인덱스
+  batch_size: 100         # API 배치 크기
+  skip_header: true       # 헤더 건너뛰기
+  parallel_workers: 4     # 병렬 처리 워커 수
+
+# Output settings
+output:
+  file: ""                # 출력 파일 (빈 문자열 = 자동 생성)
+```
+
+### 설정 파일 우선순위
+
+**명령줄 플래그 > 설정 파일 > 기본값**
+
+명령줄에서 명시적으로 지정한 플래그는 설정 파일의 값을 무시합니다:
+
+```bash
+# config.yaml에서 column: 1이지만, 명령줄에서 --column 2를 지정
+./crdp-file-converter data.csv --column 2 --encode
+# → 2번 컬럼 사용
+
+# config.yaml에서 column: 1, 명령줄에서 지정하지 않음
+./crdp-file-converter data.csv --encode
+# → 1번 컬럼 사용 (config.yaml의 기본값)
+```
+
+### 설정 파일 생성
+
+프로젝트에 포함된 `config.yaml`을 복사하여 사용:
+
+```bash
+# 프로젝트 config.yaml을 현재 위치에 복사
+cp config.yaml ./my_config.yaml
+
+# 내용 수정
+vi ./my_config.yaml
+
+# 사용
+./crdp-file-converter data.csv --encode --config ./my_config.yaml
+```
+
 ## 오류 처리
 
 프로그램은 실행 중 오류 발생 시 **즉시 진행을 멈추고** 오류 메시지를 표시한 후 **종료 코드 1**로 종료합니다.

@@ -10,11 +10,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"crdp-file-converter/pkg/config"
 	"crdp-file-converter/pkg/converter"
 )
 
 // CLI flags
 var (
+	configFile  string
 	delimiter   string
 	column      int
 	encode      bool
@@ -48,6 +50,50 @@ Example:
 func runConversion(cmd *cobra.Command, args []string) {
 	inputFile := args[0]
 
+	// Load configuration file
+	cfg, err := config.LoadConfig(configFile)
+	if err != nil {
+		log.Fatalf("❌ Error loading config: %v", err)
+	}
+
+	// Apply config defaults if flags not explicitly set
+	// Check if flag was explicitly provided by comparing with default
+	if !cmd.Flags().Changed("delimiter") {
+		delimiter = cfg.Processing.Delimiter
+	}
+	if !cmd.Flags().Changed("column") {
+		column = cfg.Processing.Column
+	}
+	if !cmd.Flags().Changed("batch-size") {
+		batchSize = cfg.Processing.BatchSize
+	}
+	if !cmd.Flags().Changed("skip-header") {
+		skipHeader = cfg.Processing.SkipHeader
+	}
+	if !cmd.Flags().Changed("parallel") {
+		parallel = cfg.Processing.ParallelWorkers
+	}
+	if !cmd.Flags().Changed("host") {
+		host = cfg.Server.Host
+	}
+	if !cmd.Flags().Changed("port") {
+		port = cfg.Server.Port
+	}
+	if !cmd.Flags().Changed("policy") {
+		policy = cfg.Server.Policy
+	}
+	if !cmd.Flags().Changed("timeout") {
+		timeout = cfg.Server.Timeout
+	}
+	if !cmd.Flags().Changed("output") {
+		output = cfg.Output.File
+	}
+
+	// Validate configuration
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("❌ Invalid config: %v", err)
+	}
+
 	// Validate operation flags
 	if err := validateOperationFlags(); err != nil {
 		log.Fatalf("❌ Error: %v", err)
@@ -61,9 +107,9 @@ func runConversion(cmd *cobra.Command, args []string) {
 
 	// Auto-detect header if -s flag is not set
 	if !skipHeader {
-		hasHeader, err := converter.DetectHeaderLine(inputFile, delimiter, column)
-		if err != nil {
-			log.Fatalf("❌ Error detecting header: %v", err)
+		hasHeader, errDetect := converter.DetectHeaderLine(inputFile, delimiter, column)
+		if errDetect != nil {
+			log.Fatalf("❌ Error detecting header: %v", errDetect)
 		}
 
 		if hasHeader {
@@ -74,10 +120,10 @@ func runConversion(cmd *cobra.Command, args []string) {
 
 	// Generate output file path if not specified
 	if output == "" {
-		var err error
-		output, err = generateOutputPath(inputFile, encode)
-		if err != nil {
-			log.Fatalf("❌ Error: %v", err)
+		var errPath error
+		output, errPath = generateOutputPath(inputFile, encode)
+		if errPath != nil {
+			log.Fatalf("❌ Error: %v", errPath)
 		}
 	}
 
@@ -88,10 +134,10 @@ func runConversion(cmd *cobra.Command, args []string) {
 	conv := converter.NewDumpConverter(host, port, policy, timeout)
 	defer conv.Close()
 
-	var err error
+	var errConvert error
 	if parallel > 1 {
 		log.Printf("Parallel processing: %d workers", parallel)
-		err = conv.ProcessFileParallel(
+		errConvert = conv.ProcessFileParallel(
 			inputFile,
 			output,
 			delimiter,
@@ -102,7 +148,7 @@ func runConversion(cmd *cobra.Command, args []string) {
 			parallel,
 		)
 	} else {
-		err = conv.ProcessFile(
+		errConvert = conv.ProcessFile(
 			inputFile,
 			output,
 			delimiter,
@@ -113,8 +159,8 @@ func runConversion(cmd *cobra.Command, args []string) {
 		)
 	}
 
-	if err != nil {
-		log.Fatalf("❌ Error: %v", err)
+	if errConvert != nil {
+		log.Fatalf("❌ Error: %v", errConvert)
 	}
 }
 
@@ -185,15 +231,18 @@ func init() {
 	// Disable flag sorting to maintain custom definition order
 	rootCmd.Flags().SortFlags = false
 
+	// Config file flag
+	rootCmd.Flags().StringVar(&configFile, "config", "", "Configuration file path (default: searches config.yaml in current dir, ~/.crdp/, /etc/crdp/)")
+
 	// Core operation flags
 	rootCmd.Flags().BoolVarP(&encode, "encode", "e", false, "Encode (protect) data")
 	rootCmd.Flags().BoolVarP(&decode, "decode", "d", false, "Decode (reveal) data")
-	rootCmd.Flags().IntVarP(&column, "column", "c", -1, "Column index to convert (0-based, required)")
+	rootCmd.Flags().IntVarP(&column, "column", "c", -1, "Column index to convert (0-based)")
 
 	// File processing flags
 	rootCmd.Flags().BoolVarP(&skipHeader, "skip-header", "s", false, "Skip header line")
-	rootCmd.Flags().StringVar(&delimiter, "delimiter", ",", "Column delimiter")
-	rootCmd.Flags().StringVar(&output, "output", "", "Output file path (default: {e/d}{nn}_{filename}.{ext})")
+	rootCmd.Flags().StringVar(&delimiter, "delimiter", ",", "Column delimiter (CSV: ',', TSV: '\\t')")
+	rootCmd.Flags().StringVar(&output, "output", "", "Output file path (default: auto-generated)")
 	rootCmd.Flags().IntVar(&batchSize, "batch-size", 100, "Bulk API batch size")
 	rootCmd.Flags().IntVarP(&parallel, "parallel", "p", 1, "Number of parallel workers (1 = sequential)")
 
