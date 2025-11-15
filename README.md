@@ -53,6 +53,9 @@ go run ./cmd main.go <arguments>
 
 # 4개 워커를 사용한 병렬 처리
 ./crdp-file-converter large_data.csv --column 1 --encode --parallel 4
+
+# 특정 파일명으로 출력 (자동 파일명 생성 무시)
+./crdp-file-converter data.csv --column 1 --encode --output result.csv
 ```
 
 ### 명령줄 옵션
@@ -101,7 +104,9 @@ Flags:
 - `--column` / `-c`: 변환할 컬럼 인덱스 (0부터 시작, 필수)
 - `--delimiter`: 컬럼 구분자 (기본: `,`)
 - `--skip-header` / `-s`: 헤더 라인 건너뛰기 플래그
-- `--output`: 출력 파일 경로 (기본: `{e/d}{nn}_{원본파일명}.{확장자}`)
+- `--output`: 출력 파일 경로
+  - 지정하지 않으면: 자동 생성 `{e/d}{nn}_{원본파일명}.{확장자}`
+  - 지정하면: 해당 이름의 파일을 생성 (자동 생성 로직 무시)
 - `--batch-size`: CRDP API 배치 크기 (기본: 100)
 - `--parallel` / `-p`: 병렬 처리 워커 수 (기본: 1, 순차 처리)
   - `{e/d}`: `e`는 encode, `d`는 decode
