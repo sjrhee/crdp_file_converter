@@ -15,17 +15,18 @@ import (
 
 // CLI flags
 var (
-	delimiter  string
-	column     int
-	encode     bool
-	decode     bool
-	output     string
-	host       string
-	port       int
-	policy     string
-	batchSize  int
-	skipHeader bool
-	timeout    int
+	delimiter   string
+	column      int
+	encode      bool
+	decode      bool
+	output      string
+	host        string
+	port        int
+	policy      string
+	batchSize   int
+	skipHeader  bool
+	timeout     int
+	parallel    int
 )
 
 // rootCmd is the entry point for the CLI application
@@ -87,15 +88,32 @@ func runConversion(cmd *cobra.Command, args []string) {
 	conv := converter.NewDumpConverter(host, port, policy, timeout)
 	defer conv.Close()
 
-	if err := conv.ProcessFile(
-		inputFile,
-		output,
-		delimiter,
-		column,
-		operation,
-		skipHeader,
-		batchSize,
-	); err != nil {
+	var err error
+	if parallel > 1 {
+		log.Printf("Parallel processing: %d workers", parallel)
+		err = conv.ProcessFileParallel(
+			inputFile,
+			output,
+			delimiter,
+			column,
+			operation,
+			skipHeader,
+			batchSize,
+			parallel,
+		)
+	} else {
+		err = conv.ProcessFile(
+			inputFile,
+			output,
+			delimiter,
+			column,
+			operation,
+			skipHeader,
+			batchSize,
+		)
+	}
+
+	if err != nil {
 		log.Fatalf("❌ Error: %v", err)
 	}
 }
@@ -177,6 +195,7 @@ func init() {
 	rootCmd.Flags().StringVar(&delimiter, "delimiter", ",", "Column delimiter")
 	rootCmd.Flags().StringVar(&output, "output", "", "Output file path (default: {e/d}{nn}_{filename}.{ext})")
 	rootCmd.Flags().IntVar(&batchSize, "batch-size", 100, "Bulk API batch size")
+	rootCmd.Flags().IntVarP(&parallel, "parallel", "p", 1, "Number of parallel workers (1 = sequential)")
 
 	// CRDP server flags
 	rootCmd.Flags().StringVar(&host, "host", "192.168.0.231", "CRDP host")

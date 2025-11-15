@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	"crdp-file-converter/pkg/crdp"
 )
@@ -366,4 +367,247 @@ func (dc *DumpConverter) Close() error {
 		return dc.client.Close()
 	}
 	return nil
+}
+
+// SplitFileResult contains information about split files
+type SplitFileResult struct {
+	FilePath   string
+	LineCount  int
+	HeaderLine string
+}
+
+// SplitInputFile splits a CSV/TSV file into multiple parts
+// Returns slice of file paths and header line if present
+func (dc *DumpConverter) SplitInputFile(
+	inputFile string,
+	delimiter string,
+	skipHeader bool,
+	numSplits int,
+) ([]SplitFileResult, error) {
+	if numSplits < 2 {
+		return nil, fmt.Errorf("numSplits must be at least 2")
+	}
+
+	// Read entire file
+	file, err := os.Open(inputFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open input file: %w", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	if delimiter != "" {
+		reader.Comma = rune(delimiter[0])
+	}
+
+	var allRows [][]string
+	var headerLine []string
+
+	for i := 0; ; i++ {
+		record, err := reader.Read()
+		if err != nil {
+			break
+		}
+		if i == 0 && skipHeader {
+			headerLine = record
+		} else {
+			allRows = append(allRows, record)
+		}
+	}
+
+	if len(allRows) == 0 {
+		return nil, fmt.Errorf("no data rows to process")
+	}
+
+	// Calculate rows per split
+	rowsPerSplit := (len(allRows) + numSplits - 1) / numSplits
+
+	// Create split files
+	var results []SplitFileResult
+	headerStr := ""
+	if len(headerLine) > 0 {
+		headerStr = strings.Join(headerLine, delimiter)
+	}
+
+	for i := 0; i < numSplits; i++ {
+		start := i * rowsPerSplit
+		end := start + rowsPerSplit
+		if end > len(allRows) {
+			end = len(allRows)
+		}
+
+		if start >= len(allRows) {
+			break
+		}
+
+		// Create split file
+		splitPath := fmt.Sprintf("%s.part%d", inputFile, i+1)
+		splitFile, err := os.Create(splitPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create split file: %w", err)
+		}
+
+		writer := csv.NewWriter(splitFile)
+		if delimiter != "" {
+			writer.Comma = rune(delimiter[0])
+		}
+
+		// Write header if present
+		if len(headerLine) > 0 {
+			writer.Write(headerLine)
+		}
+
+		// Write data rows
+		for _, row := range allRows[start:end] {
+			writer.Write(row)
+		}
+
+		writer.Flush()
+		splitFile.Close()
+
+		results = append(results, SplitFileResult{
+			FilePath:   splitPath,
+			LineCount:  end - start,
+			HeaderLine: headerStr,
+		})
+	}
+
+	return results, nil
+}
+
+// ProcessFileParallel splits input file and processes parts in parallel
+func (dc *DumpConverter) ProcessFileParallel(
+	inputFile string,
+	outputFile string,
+	delimiter string,
+	columnIndex int,
+	operation string,
+	skipHeader bool,
+	batchSize int,
+	numParallel int,
+) error {
+	if numParallel < 2 {
+		// Fall back to single processing
+		return dc.ProcessFile(inputFile, outputFile, delimiter, columnIndex, operation, skipHeader, batchSize)
+	}
+
+	log.Printf("Splitting file into %d parts for parallel processing...", numParallel)
+
+	// Split the file
+	splits, err := dc.SplitInputFile(inputFile, delimiter, skipHeader, numParallel)
+	if err != nil {
+		return fmt.Errorf("failed to split file: %w", err)
+	}
+
+	log.Printf("Created %d split files", len(splits))
+
+	// Process splits in parallel
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(splits))
+	outputFiles := make([]string, len(splits))
+
+	for i, split := range splits {
+		wg.Add(1)
+		go func(idx int, splitFile SplitFileResult) {
+			defer wg.Done()
+
+			// Create output file for this split
+			baseExt := ""
+			if idx > 0 {
+				baseExt = fmt.Sprintf(".part%d", idx+1)
+			}
+			splitOutput := outputFile + baseExt
+
+			outputFiles[idx] = splitOutput
+
+			log.Printf("[Part %d] Processing %s -> %s (%d rows)", idx+1, splitFile.FilePath, splitOutput, splitFile.LineCount)
+
+			// Process this split
+			err := dc.ProcessFile(splitFile.FilePath, splitOutput, delimiter, columnIndex, operation, skipHeader, batchSize)
+			if err != nil {
+				errChan <- fmt.Errorf("part %d failed: %w", idx+1, err)
+			} else {
+				log.Printf("[Part %d] Completed", idx+1)
+			}
+		}(i, split)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	// Merge output files
+	log.Printf("Merging %d output files...", len(splits))
+	err = dc.mergeOutputFiles(outputFiles, outputFile, delimiter, skipHeader)
+	if err != nil {
+		return fmt.Errorf("failed to merge output files: %w", err)
+	}
+
+	// Clean up split files
+	for _, split := range splits {
+		os.Remove(split.FilePath)
+	}
+	for _, outFile := range outputFiles {
+		if outFile != outputFile {
+			os.Remove(outFile)
+		}
+	}
+
+	return nil
+}
+
+// mergeOutputFiles combines multiple output files into a single file
+func (dc *DumpConverter) mergeOutputFiles(inputFiles []string, outputFile string, delimiter string, skipHeader bool) error {
+	outF, err := os.Create(outputFile)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outF.Close()
+
+	writer := csv.NewWriter(outF)
+	if delimiter != "" {
+		writer.Comma = rune(delimiter[0])
+	}
+
+	headerWritten := false
+
+	for _, inputFile := range inputFiles {
+		file, err := os.Open(inputFile)
+		if err != nil {
+			return fmt.Errorf("failed to open file for merging: %w", err)
+		}
+
+		reader := csv.NewReader(file)
+		if delimiter != "" {
+			reader.Comma = rune(delimiter[0])
+		}
+
+		for i := 0; ; i++ {
+			record, err := reader.Read()
+			if err != nil {
+				break
+			}
+
+			// Skip header from non-first files
+			if i == 0 && skipHeader && headerWritten {
+				continue
+			}
+
+			writer.Write(record)
+			if i == 0 && skipHeader {
+				headerWritten = true
+			}
+		}
+
+		file.Close()
+	}
+
+	writer.Flush()
+	return writer.Error()
 }
