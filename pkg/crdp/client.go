@@ -30,25 +30,11 @@ func (r *APIResponse) IsSuccess() bool {
 	return r.Error == nil && r.StatusCode == 200
 }
 
-// ProtectRequest is a single data protection request
-type ProtectRequest struct {
-	ProtectionPolicyName string `json:"protection_policy_name"`
-	Data                 string `json:"data"`
-	Username             string `json:"username,omitempty"`
-}
-
 // ProtectBulkRequest is a bulk data protection request
 type ProtectBulkRequest struct {
 	ProtectionPolicyName string   `json:"protection_policy_name"`
 	DataArray            []string `json:"data_array"`
 	Username             string   `json:"username,omitempty"`
-}
-
-// RevealRequest is a single data reveal request
-type RevealRequest struct {
-	ProtectionPolicyName string `json:"protection_policy_name"`
-	ProtectedData        string `json:"protected_data"`
-	Username             string `json:"username,omitempty"`
 }
 
 // RevealBulkRequest is a bulk data reveal request
@@ -144,24 +130,6 @@ func (c *Client) postJSON(endpoint string, payload interface{}) *APIResponse {
 		RequestURL: fullURL,
 		Error:      nil,
 	}
-}
-
-// Protect protects a single data
-func (c *Client) Protect(data string) *APIResponse {
-	payload := ProtectRequest{
-		ProtectionPolicyName: c.policy,
-		Data:                 data,
-	}
-	return c.postJSON("/v1/protect", payload)
-}
-
-// Reveal reveals protected data
-func (c *Client) Reveal(protectedData string) *APIResponse {
-	payload := RevealRequest{
-		ProtectionPolicyName: c.policy,
-		ProtectedData:        protectedData,
-	}
-	return c.postJSON("/v1/reveal", payload)
 }
 
 // ProtectBulk protects multiple data

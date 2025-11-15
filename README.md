@@ -305,8 +305,6 @@ golangci-lint run ./...
 
 - **역할**: CRDP API와의 통신 담당
 - **주요 메서드**:
-  - `Protect(data)`: 단일 데이터 보호
-  - `Reveal(protectedData)`: 단일 데이터 복호화
   - `ProtectBulk(dataList)`: 대량 데이터 보호
   - `RevealBulk(protectedDataList)`: 대량 데이터 복호화
   - `Extract*FromResponse()`: 응답에서 결과 추출
