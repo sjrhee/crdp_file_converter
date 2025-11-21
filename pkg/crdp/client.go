@@ -2,9 +2,11 @@ package crdp
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -59,8 +61,18 @@ func NewClientWithTLS(host string, port int, policy string, timeout int, useTLS 
 	}
 	baseURL := fmt.Sprintf("%s://%s:%d", scheme, host, port)
 
+	// Create HTTP client with TLS configuration
 	httpClient := &http.Client{
 		Timeout: time.Duration(timeout) * time.Second,
+	}
+
+	// If TLS is enabled, skip certificate verification for self-signed certificates
+	if useTLS {
+		httpClient.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
 	}
 
 	return &Client{
@@ -118,6 +130,7 @@ func (c *Client) postJSON(endpoint string, payload interface{}) *APIResponse {
 
 	resp, err := c.client.Do(req)
 	if err != nil {
+		log.Printf("[DEBUG] API call error: %v", err)
 		return &APIResponse{
 			StatusCode: 0,
 			Body:       nil,
