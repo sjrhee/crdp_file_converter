@@ -182,6 +182,11 @@ api:
 protection:
   policy: "P03"
 
+# JWT 인증 설정
+auth:
+  jwt_enabled: false
+  jwt_token: ""
+
 # 파일 처리 설정
 file:
   delimiter: ","
@@ -215,6 +220,10 @@ output:
 
 #### 보호 정책
 - `protection.policy`: 데이터 보호 정책명 (기본값: P03)
+
+#### JWT 인증
+- `auth.jwt_enabled`: JWT 토큰 기반 인증 활성화 (기본값: false)
+- `auth.jwt_token`: JWT 토큰 값 (Bearer 토큰, 기본값: "")
 
 #### 파일 처리
 - `file.delimiter`: 컬럼 구분자 (기본값: ",")
@@ -343,6 +352,33 @@ $ ./crdp-file-converter data.csv --column 1 --operation invalid
 - 초기 권장값: CPU 코어 수 또는 가용 메모리 고려
 - 작은 파일(<10MB)은 병렬 처리 오버헤드가 더 클 수 있음
 - 대용량 파일(>100MB)에서 성능 향상 효과 높음
+
+## JWT 인증
+
+CRDP API가 JWT 토큰 인증을 요구하는 경우, config.yaml에서 설정하거나 `auth.jwt_enabled`와 `auth.jwt_token`을 구성할 수 있습니다.
+
+### 설정 파일로 JWT 설정
+
+`config.yaml`:
+```yaml
+# JWT 인증 설정
+auth:
+  jwt_enabled: true
+  jwt_token: "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### JWT 토큰 적용
+
+JWT가 활성화되면, 모든 CRDP API 요청에 자동으로 `Authorization: Bearer <token>` 헤더가 추가됩니다.
+
+```bash
+# config.yaml에 JWT 설정이 있는 경우 자동 적용
+./crdp-file-converter data.csv --column 1 --encode --config config.yaml
+```
+
+### crdp_cli_go와의 호환성
+
+JWT 설정도 [crdp_cli_go](https://github.com/sjrhee/crdp_cli_go)와 동일한 형식을 사용하므로, 두 프로젝트 간에 config.yaml을 공유할 수 있습니다.
 
 ## 예시
 

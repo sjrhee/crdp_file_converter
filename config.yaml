@@ -19,6 +19,13 @@ protection:
   # 데이터 보호 정책명
   policy: "P03"
 
+# JWT 인증 설정
+auth:
+  # JWT 토큰 기반 인증 활성화 여부
+  jwt_enabled: false
+  # JWT 토큰 값 (Bearer 토큰)
+  jwt_token: ""
+
 # 파일 처리 설정
 file:
   # 컬럼 구분자 (쉼표는 CSV, 탭은 TSV)

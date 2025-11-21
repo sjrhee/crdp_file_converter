@@ -130,8 +130,14 @@ func runConversion(cmd *cobra.Command, args []string) {
 	log.Printf("CRDP Server: %s:%d", host, port)
 	log.Printf("Policy: %s", policy)
 
-	// Create converter and process file
-	conv := converter.NewDumpConverter(host, port, policy, timeout)
+	// Create converter with JWT token if enabled
+	var conv *converter.DumpConverter
+	if cfg.Auth.JWTEnabled && cfg.Auth.JWTToken != "" {
+		log.Printf("Using JWT authentication")
+		conv = converter.NewDumpConverterWithJWT(host, port, policy, timeout, cfg.Auth.JWTToken)
+	} else {
+		conv = converter.NewDumpConverter(host, port, policy, timeout)
+	}
 	defer conv.Close()
 
 	var errConvert error

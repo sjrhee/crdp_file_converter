@@ -12,6 +12,7 @@ import (
 type Config struct {
 	API        APIConfig        `yaml:"api"`
 	Protection ProtectionConfig `yaml:"protection"`
+	Auth       AuthConfig       `yaml:"auth"`
 	File       FileConfig       `yaml:"file"`
 	Batch      BatchConfig      `yaml:"batch"`
 	Parallel   ParallelConfig   `yaml:"parallel"`
@@ -29,6 +30,12 @@ type APIConfig struct {
 // ProtectionConfig represents data protection settings
 type ProtectionConfig struct {
 	Policy string `yaml:"policy"`
+}
+
+// AuthConfig represents JWT authentication settings
+type AuthConfig struct {
+	JWTEnabled bool   `yaml:"jwt_enabled"`
+	JWTToken   string `yaml:"jwt_token"`
 }
 
 // FileConfig represents file processing settings
@@ -68,6 +75,10 @@ func DefaultConfig() *Config {
 		},
 		Protection: ProtectionConfig{
 			Policy: "P03",
+		},
+		Auth: AuthConfig{
+			JWTEnabled: false,
+			JWTToken:   "",
 		},
 		File: FileConfig{
 			Delimiter:  ",",

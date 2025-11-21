@@ -30,6 +30,17 @@ func NewDumpConverter(host string, port int, policy string, timeout int) *DumpCo
 	}
 }
 
+// NewDumpConverterWithJWT creates a new DumpConverter instance with JWT authentication
+func NewDumpConverterWithJWT(host string, port int, policy string, timeout int, jwtToken string) *DumpConverter {
+	client := crdp.NewClientWithJWT(host, port, policy, timeout, jwtToken)
+	return &DumpConverter{
+		client: client,
+		host:   host,
+		port:   port,
+		policy: policy,
+	}
+}
+
 // ProcessFile orchestrates the complete file conversion workflow:
 // 1. Read and parse input CSV/TSV file
 // 2. Extract data to be converted

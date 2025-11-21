@@ -11,10 +11,11 @@ import (
 
 // Client is a CRDP API client that communicates with CRDP server
 type Client struct {
-	baseURL  string
-	policy   string
-	timeout  time.Duration
-	client   *http.Client
+	baseURL   string
+	policy    string
+	timeout   time.Duration
+	client    *http.Client
+	jwtToken  string
 }
 
 // APIResponse represents a response from the CRDP API
@@ -53,11 +54,19 @@ func NewClient(host string, port int, policy string, timeout int) *Client {
 	}
 
 	return &Client{
-		baseURL:  baseURL,
-		policy:   policy,
-		timeout:  time.Duration(timeout) * time.Second,
-		client:   httpClient,
+		baseURL:   baseURL,
+		policy:    policy,
+		timeout:   time.Duration(timeout) * time.Second,
+		client:    httpClient,
+		jwtToken:  "",
 	}
+}
+
+// NewClientWithJWT creates a new CRDP API client with JWT authentication
+func NewClientWithJWT(host string, port int, policy string, timeout int, jwtToken string) *Client {
+	client := NewClient(host, port, policy, timeout)
+	client.jwtToken = jwtToken
+	return client
 }
 
 // Close closes the client and frees resources
@@ -92,6 +101,11 @@ func (c *Client) postJSON(endpoint string, payload interface{}) *APIResponse {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Connection", "keep-alive")
+	
+	// Add JWT token to header if present
+	if c.jwtToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.jwtToken))
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
