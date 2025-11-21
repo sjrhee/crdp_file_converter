@@ -16,6 +16,7 @@ type Client struct {
 	timeout   time.Duration
 	client    *http.Client
 	jwtToken  string
+	useTLS    bool
 }
 
 // APIResponse represents a response from the CRDP API
@@ -47,7 +48,16 @@ type RevealBulkRequest struct {
 
 // NewClient creates a new CRDP API client with the given configuration
 func NewClient(host string, port int, policy string, timeout int) *Client {
-	baseURL := fmt.Sprintf("http://%s:%d", host, port)
+	return NewClientWithTLS(host, port, policy, timeout, false, "")
+}
+
+// NewClientWithTLS creates a new CRDP API client with TLS option
+func NewClientWithTLS(host string, port int, policy string, timeout int, useTLS bool, jwtToken string) *Client {
+	scheme := "http"
+	if useTLS {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s:%d", scheme, host, port)
 
 	httpClient := &http.Client{
 		Timeout: time.Duration(timeout) * time.Second,
@@ -58,15 +68,14 @@ func NewClient(host string, port int, policy string, timeout int) *Client {
 		policy:    policy,
 		timeout:   time.Duration(timeout) * time.Second,
 		client:    httpClient,
-		jwtToken:  "",
+		jwtToken:  jwtToken,
+		useTLS:    useTLS,
 	}
 }
 
 // NewClientWithJWT creates a new CRDP API client with JWT authentication
 func NewClientWithJWT(host string, port int, policy string, timeout int, jwtToken string) *Client {
-	client := NewClient(host, port, policy, timeout)
-	client.jwtToken = jwtToken
-	return client
+	return NewClientWithTLS(host, port, policy, timeout, false, jwtToken)
 }
 
 // Close closes the client and frees resources

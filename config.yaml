@@ -8,23 +8,23 @@ api:
   # CRDP API 서버 호스트명 또는 IP 주소
   host: "192.168.0.231"
   # CRDP API 서버 포트
-  port: 32082
+  port: 32382
   # API 요청 타임아웃 (초 단위)
-  timeout: 30
+  timeout: 5
   # HTTPS 사용 여부
-  tls: false
+  tls: true
 
 # 보호 정책
 protection:
   # 데이터 보호 정책명
-  policy: "P03"
+  policy: "dev-users-policy"
 
 # JWT 인증 설정
 auth:
   # JWT 토큰 기반 인증 활성화 여부
-  jwt_enabled: false
+  jwt_enabled: true
   # JWT 토큰 값 (Bearer 토큰)
-  jwt_token: ""
+  jwt_token: "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjIwNzkxNzgwODAsImlzcyI6Imp3dC1pc3N1ZXIiLCJzdWIiOiJkZXYtdXNlcjAxIiwiaWF0IjoxNzYzNjAyMTU2fQ.Z-rpCD-Lz5qLjO-t3X_Ye2_5e7oJLvfBRfmAU9fopK3Tjf5ysOUCaoLO-S3eYn5Xyn-OQbS6xNLnVKumaQQ8sQ"
 
 # 파일 처리 설정
 file:

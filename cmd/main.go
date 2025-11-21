@@ -130,11 +130,16 @@ func runConversion(cmd *cobra.Command, args []string) {
 	log.Printf("CRDP Server: %s:%d", host, port)
 	log.Printf("Policy: %s", policy)
 
-	// Create converter with JWT token if enabled
+	// Create converter with TLS and/or JWT if configured
 	var conv *converter.DumpConverter
-	if cfg.Auth.JWTEnabled && cfg.Auth.JWTToken != "" {
-		log.Printf("Using JWT authentication")
-		conv = converter.NewDumpConverterWithJWT(host, port, policy, timeout, cfg.Auth.JWTToken)
+	if cfg.API.TLS || (cfg.Auth.JWTEnabled && cfg.Auth.JWTToken != "") {
+		if cfg.API.TLS {
+			log.Printf("Using TLS connection")
+		}
+		if cfg.Auth.JWTEnabled && cfg.Auth.JWTToken != "" {
+			log.Printf("Using JWT authentication")
+		}
+		conv = converter.NewDumpConverterWithTLS(host, port, policy, timeout, cfg.API.TLS, cfg.Auth.JWTToken)
 	} else {
 		conv = converter.NewDumpConverter(host, port, policy, timeout)
 	}
